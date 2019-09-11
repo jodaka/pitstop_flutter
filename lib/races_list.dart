@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'clubs_list.dart';
+import 'package:intl/intl.dart';
 
 class Race {
   final int best;
   final int clubid;
-  final String date;
+  final DateTime date;
   final int id;
   final int laps;
   final String name;
   final String winner;
   final int winnerId;
   final int winnerKart;
+  final DateFormat _dateFormat = new DateFormat("E, d MMMM, H:m");
+
+  String get formattedDate {
+    return _dateFormat.format(this.date);
+  }
 
   Race({
     this.best,
@@ -25,17 +32,17 @@ class Race {
     this.winnerKart
   });
 
-  factory Race.fromJson(Map<String, dynamic> json) {
+  factory Race.fromJson(Map<String, dynamic> responseJson) {
     return Race(
-      best: json['best'],
-      clubid: json['clubid'],
-      date: json['date'],
-      id: json['id'],
-      laps: json['laps'],
-      name: json['name'],
-      winner: json['winner'],
-      winnerId: json['winnerId'],
-      winnerKart: json['winnerKart'],
+      best: responseJson['best'],
+      clubid: responseJson['clubid'],
+      date: DateTime.parse(responseJson['date']),
+      id: responseJson['id'],
+      laps: responseJson['laps'],
+      name: responseJson['name'],
+      winner: responseJson['winner'],
+      winnerId: responseJson['winnerId'],
+      winnerKart: responseJson['winnerKart'],
     );
   }
 }
@@ -64,37 +71,53 @@ class RacesResponse {
 
 class RacesList extends StatefulWidget {
   final String clubId;
+  final GlobalKey<NavigatorState> navigatorKey;
 
-  RacesList(this.clubId);
+  RacesList(this.navigatorKey, this.clubId);
 
   @override
-  createState() => RacesListState(this.clubId);
+  createState() => RacesListState(this.navigatorKey, this.clubId);
 }
 
 class Choice {
-  const Choice({this.title, this.icon});
-
+  Choice(this.title, this.icon);
   final String title;
   final IconData icon;
 }
 
-const List<Choice> choices = const <Choice>[
-  const Choice(title: 'list', icon: Icons.list),
-  const Choice(title: 'grade', icon: Icons.grade)
+final List<Choice> choices = <Choice>[
+  Choice('list', Icons.list),
+  Choice('grade', Icons.grade)
 ];
+
+class RacesListColumnTitle {
+  RacesListColumnTitle(this.title, this.isNumeric);
+  final String title;
+  final bool isNumeric;
+}
 
 class RacesListState extends State<RacesList> {
   String _page = '0';
   final String clubId;
-  Future<RacesResponse> races;
+  final GlobalKey<NavigatorState> navigatorKey;
+  final List<RacesListColumnTitle> racesListColumns = [
+    RacesListColumnTitle("Заезд", false),
+    RacesListColumnTitle("Дата", false),
+    RacesListColumnTitle("Победитель", false),
+    RacesListColumnTitle("Карт", true),
+    RacesListColumnTitle("Лучшее время", true)
+  ];
+
+  Future<RacesResponse> racesPromise;
+  RacesResponse races;
   Choice _selectedChoice = choices[0]; // The app's "state".
 
-  RacesListState(this.clubId);
+  RacesListState(this.navigatorKey, this.clubId);
 
   @override
   void initState() {
     super.initState();
-    races = _getRaces(this.clubId, this._page);
+    racesPromise = _getRaces(this.clubId, this._page);
   }
 
   Future<RacesResponse> _getRaces(String clubId, String page) async {
@@ -104,7 +127,8 @@ class RacesListState extends State<RacesList> {
     if (response.statusCode == 200) {
       // If server returns an OK response, parse the JSON.
 
-      return RacesResponse.fromJson(json.decode(response.body));
+      this.races = RacesResponse.fromJson(json.decode(response.body));
+      return this.races;
     } else {
       // If that response was not OK, throw an error.
       throw Exception('Failed to load races list for club $clubId page $page');
@@ -118,13 +142,41 @@ class RacesListState extends State<RacesList> {
     });
   }
 
+  Widget _racesTable() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: racesListColumns.map((column) {
+            return DataColumn(label: Text(column.title), numeric: column.isNumeric);
+          }).toList(),
+          rows: races.data.map((Race race){
+            return DataRow(
+
+              cells: <DataCell>[
+                DataCell(Text(race.name)),
+                DataCell(Text(race.formattedDate)),
+                DataCell(Text(race.winner)),
+                DataCell(Text(race.winnerKart.toString())),
+                DataCell(Text(race.winner))
+              ]
+            );
+          }).toList()
+        )
+      )
+    );
+  }
+
   Widget _renderRacesList() {
     return Center(
       child: FutureBuilder<RacesResponse>(
-        future: races,
+        future: racesPromise,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return Text("Total races ${snapshot.data.total}. Selected ${_selectedChoice.title}");
+            //return Text("Total races ${snapshot.data.total}. Selected ${_selectedChoice.title}");
+            return _racesTable();
+
           } else if (snapshot.hasError) {
             return Text("${snapshot.error}");
           }
@@ -135,17 +187,21 @@ class RacesListState extends State<RacesList> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fetch Data Example',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: Text('Гонки'),
+          title: Text('Гонки в клубе ${ClubsList.getTitleById(this.clubId)}'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              this.navigatorKey.currentState.pop();
+            },
+          ),
           actions: <Widget>[
             // action button
             IconButton(

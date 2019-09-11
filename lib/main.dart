@@ -1,26 +1,11 @@
 import 'package:flutter/material.dart';
 import 'races_list.dart';
+import 'clubs_list.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(PitstopApp());
 
-class Club {
-  final String id;
-  final String name;
-  final String title;
-
-  Club({this.id, this.name, this.title});
-}
-
-class ClubsList {
-  static List<Club> list = [
-    Club(id: "586", name: "pulkovo", title: "Пулково"),
-    Club(id: "686", name: "drive", title: "Драйв"),
-    Club(id: "786", name: "pulkovo", title: "Нарвская"),
-    Club(id: "25506", name: "pulkovo", title: "Ладожская"),
-  ];
-}
-
-class MyApp extends StatelessWidget {
+class PitstopApp extends StatelessWidget {
 
   final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -29,8 +14,27 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'Pitstop',
-      home: _clubsList()
+      home: new ClubsListWidget(this.navigatorKey)
     );
+  }
+}
+
+class ClubsListWidget extends StatefulWidget {
+  final GlobalKey<NavigatorState> navigatorKey;
+  ClubsListWidget(this.navigatorKey);
+
+  @override
+  createState() => new ClubsListWidgetState(this.navigatorKey);
+}
+
+class ClubsListWidgetState extends State<ClubsListWidget> {
+  final GlobalKey<NavigatorState> navigatorKey;
+  ClubsListWidgetState(this.navigatorKey);
+
+  @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting();
   }
 
   Widget _generateClubButton(Club club) {
@@ -45,7 +49,8 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  Widget _clubsList() {
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: GridView.count(
         primary: false,
@@ -59,8 +64,8 @@ class MyApp extends StatelessWidget {
   }
 
   void _showClubRacesScreen(String clubId) {
-    navigatorKey.currentState.push(
-      MaterialPageRoute(builder: (context) => RacesList(clubId)),
+    this.navigatorKey.currentState.push(
+      MaterialPageRoute(builder: (context) => RacesList(this.navigatorKey, clubId)),
     );
   }
 }
