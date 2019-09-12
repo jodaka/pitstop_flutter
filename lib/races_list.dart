@@ -97,7 +97,7 @@ class RacesListColumnTitle {
 }
 
 class RacesListState extends State<RacesList> {
-  String _page = '0';
+  int _page = 0;
   final String clubId;
   final GlobalKey<NavigatorState> navigatorKey;
   final List<RacesListColumnTitle> racesListColumns = [
@@ -117,15 +117,21 @@ class RacesListState extends State<RacesList> {
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    debugPrint("loading data Page ${this._page}");
     racesPromise = _getRaces(this.clubId, this._page);
   }
 
-  Future<RacesResponse> _getRaces(String clubId, String page) async {
+  Future<RacesResponse> _getRaces(String clubId, int page) async {
     final url = "https://pitstop.top/api/races/$clubId/$page";
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
       // If server returns an OK response, parse the JSON.
+      debugPrint("json data fetched ${response.body}");
 
       this.races = RacesResponse.fromJson(json.decode(response.body));
       return this.races;
@@ -142,27 +148,65 @@ class RacesListState extends State<RacesList> {
     });
   }
 
+  Widget _pagination() {
+    final int itemsPerPage = this.races.data.length;
+
+    bool showNextPage = (this.races.total > itemsPerPage && (this._page + 1) * itemsPerPage < this.races.total );
+    bool showPrevPage = (this._page > 0);
+
+    Widget nextPageWidget = RaisedButton(
+      onPressed: (){
+        setState(() {
+          _page = _page + 1;
+          _loadData();
+        });
+      },
+      child: Text("Дальше")
+    );
+
+    Widget prevPageWidget = RaisedButton(
+      onPressed: (){
+        setState(() {
+          _page = _page - 1;
+          _loadData();
+        });
+      },
+      child: Text("Раньше")
+    );
+
+    return Row(
+      children: <Widget>[
+        if (showPrevPage) prevPageWidget,
+        if (showNextPage) nextPageWidget
+      ]
+    );
+  }
+
   Widget _racesTable() {
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: racesListColumns.map((column) {
-            return DataColumn(label: Text(column.title), numeric: column.isNumeric);
-          }).toList(),
-          rows: races.data.map((Race race){
-            return DataRow(
-
-              cells: <DataCell>[
-                DataCell(Text(race.name)),
-                DataCell(Text(race.formattedDate)),
-                DataCell(Text(race.winner)),
-                DataCell(Text(race.winnerKart.toString())),
-                DataCell(Text(race.winner))
-              ]
-            );
-          }).toList()
+        child: Column(
+          children: <Widget>[
+            DataTable(
+              columns: racesListColumns.map((column) {
+                return DataColumn(label: Text(column.title), numeric: column.isNumeric);
+              }).toList(),
+              rows: races.data.map((Race race){
+                return DataRow(
+                  cells: <DataCell>[
+                    DataCell(Text(race.name)),
+                    DataCell(Text(race.formattedDate)),
+                    DataCell(Text(race.winner)),
+                    DataCell(Text(race.winnerKart.toString())),
+                    DataCell(Text(race.winner))
+                  ]
+                );
+              }).toList()
+            ),
+            _pagination()
+          ],
         )
       )
     );
