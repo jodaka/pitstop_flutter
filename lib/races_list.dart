@@ -20,6 +20,10 @@ class Race {
     return _dateFormat.format(this.date);
   }
 
+  String get bestTime {
+    return (this.best / 1000).toString().padRight(6, '0');
+  }
+
   Race({
     this.best,
     this.clubid,
@@ -45,6 +49,12 @@ class Race {
       winnerKart: responseJson['winnerKart'],
     );
   }
+}
+
+String truncateWithEllipsis(int cutoff, String myString) {
+  return (myString.length <= cutoff)
+    ? myString
+    : '${myString.substring(0, cutoff)}...';
 }
 
 class RacesResponse {
@@ -79,17 +89,6 @@ class RacesList extends StatefulWidget {
   createState() => RacesListState(this.navigatorKey, this.clubId);
 }
 
-class Choice {
-  Choice(this.title, this.icon);
-  final String title;
-  final IconData icon;
-}
-
-final List<Choice> choices = <Choice>[
-  Choice('list', Icons.list),
-  Choice('grade', Icons.grade)
-];
-
 class RacesListColumnTitle {
   RacesListColumnTitle(this.title, this.isNumeric);
   final String title;
@@ -110,7 +109,7 @@ class RacesListState extends State<RacesList> {
 
   Future<RacesResponse> racesPromise;
   RacesResponse races;
-  Choice _selectedChoice = choices[0]; // The app's "state".
+  int _selectedChoice = 0; // The app's "state".
 
   RacesListState(this.navigatorKey, this.clubId);
 
@@ -141,7 +140,7 @@ class RacesListState extends State<RacesList> {
     }
   }
 
-  void _select(Choice choice) {
+  void _select(int choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
       _selectedChoice = choice;
@@ -181,6 +180,17 @@ class RacesListState extends State<RacesList> {
       ]
     );
   }
+  Widget _ellipsisTextContainer(String text, double width) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: width),
+      child: Text(
+        text,
+        overflow: TextOverflow.fade,
+        maxLines: 1,
+        softWrap: false,
+      )
+    );
+  }
 
   Widget _racesTable() {
     return SingleChildScrollView(
@@ -196,11 +206,11 @@ class RacesListState extends State<RacesList> {
               rows: races.data.map((Race race){
                 return DataRow(
                   cells: <DataCell>[
-                    DataCell(Text(race.name)),
+                    DataCell(_ellipsisTextContainer(race.name, 150)),
                     DataCell(Text(race.formattedDate)),
                     DataCell(Text(race.winner)),
                     DataCell(Text(race.winnerKart.toString())),
-                    DataCell(Text(race.winner))
+                    DataCell(Text(race.bestTime))
                   ]
                 );
               }).toList()
@@ -249,16 +259,18 @@ class RacesListState extends State<RacesList> {
           actions: <Widget>[
             // action button
             IconButton(
-              icon: Icon(choices[0].icon),
+              icon: Icon(Icons.list),
               onPressed: () {
-                _select(choices[0]);
+                _select(0);
               },
+              color: this._selectedChoice == 0 ? Color.fromRGBO(255, 255, 255, 1) :  Color.fromRGBO(100, 100, 100, 1),
             ),
             // action button
             IconButton(
-              icon: Icon(choices[1].icon),
+              icon: Icon(Icons.grade),
+              color: this._selectedChoice != 0 ? Color.fromRGBO(255, 255, 255, 1) :  Color.fromRGBO(100, 100, 100, 1),
               onPressed: () {
-                _select(choices[1]);
+                _select(1);
               },
             )
           ]
